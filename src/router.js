@@ -31,6 +31,10 @@ const Security = () => import("./components/settings/Security.vue");
 import Proxies from "./components/settings/Proxies.vue";
 import About from "./components/settings/About.vue";
 import RemoteBrowsers from "./components/settings/RemoteBrowsers.vue";
+const Users = () => import("./components/settings/Users.vue");
+const Groups = () => import("./components/settings/Groups.vue");
+const SSO = () => import("./components/settings/SSO.vue");
+const MonitorCollections = () => import("./components/settings/MonitorCollections.vue");
 
 const routes = [
     {
@@ -134,6 +138,22 @@ const routes = [
                             {
                                 path: "about",
                                 component: About,
+                            },
+                            {
+                                path: "users",
+                                component: Users,
+                            },
+                            {
+                                path: "groups",
+                                component: Groups,
+                            },
+                            {
+                                path: "sso",
+                                component: SSO,
+                            },
+                            {
+                                path: "monitor-collections",
+                                component: MonitorCollections,
                             },
                         ],
                     },

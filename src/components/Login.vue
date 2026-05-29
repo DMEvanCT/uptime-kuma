@@ -70,6 +70,16 @@
                     {{ $t(res.msg) }}
                 </div>
             </form>
+
+            <div v-if="samlEnabled || oidcEnabled" class="mt-3">
+                <hr />
+                <a v-if="samlEnabled" href="/auth/saml/login" class="w-100 btn btn-outline-secondary" :class="{ 'mb-2': oidcEnabled }">
+                    {{ $t("Login with SSO") }}
+                </a>
+                <a v-if="oidcEnabled" href="/auth/oidc/login" class="w-100 btn btn-outline-secondary">
+                    {{ $t("Login with OIDC") }}
+                </a>
+            </div>
         </div>
     </div>
 </template>
@@ -84,6 +94,8 @@ export default {
             token: "",
             res: null,
             tokenRequired: false,
+            samlEnabled: false,
+            oidcEnabled: false,
         };
     },
 
@@ -99,6 +111,16 @@ export default {
 
     mounted() {
         document.title += " - Login";
+        this.$root.getSocket().emit("getSAMLEnabled", (res) => {
+            if (res.ok) {
+                this.samlEnabled = res.enabled;
+            }
+        });
+        this.$root.getSocket().emit("getOIDCEnabled", (res) => {
+            if (res.ok) {
+                this.oidcEnabled = res.enabled;
+            }
+        });
     },
 
     unmounted() {

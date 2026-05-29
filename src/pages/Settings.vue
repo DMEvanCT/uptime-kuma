@@ -84,7 +84,7 @@ export default {
         },
 
         subMenus() {
-            return {
+            const menus = {
                 general: {
                     title: this.$t("General"),
                 },
@@ -122,6 +122,17 @@ export default {
                     title: this.$t("About"),
                 },
             };
+
+            if (this.$root.isAdmin) {
+                menus["users"] = { title: this.$t("Users") };
+                menus["groups"] = { title: this.$t("Groups") };
+                menus["sso"] = { title: this.$t("Configure SSO") };
+                menus["monitor-collections"] = { title: this.$t("Monitor Collections") };
+            } else if (this.$root.userPermissions?.includes("manage_monitor_collections")) {
+                menus["monitor-collections"] = { title: this.$t("Monitor Collections") };
+            }
+
+            return menus;
         },
     },
 

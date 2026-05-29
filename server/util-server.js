@@ -641,6 +641,99 @@ exports.checkLogin = (socket) => {
 };
 
 /**
+ * Check if the user is a super-admin
+ * @param {number} userID User ID
+ * @returns {Promise<boolean>}
+ */
+exports.isAdmin = async (userID) => {
+    const user = await R.findOne("user", " id = ? ", [userID]);
+    return user && !!user.admin;
+};
+
+/**
+ * Check if the user has a specific permission (admins always pass)
+ * @param {object} socket Socket instance
+ * @param {string} permission Permission constant from permissions.js
+ * @returns {Promise<void>}
+ * @throws Permission denied
+ */
+exports.checkPermission = async (socket, permission) => {
+    exports.checkLogin(socket);
+
+    if (await exports.isAdmin(socket.userID)) {
+        return;
+    }
+
+    const row = await R.getRow(
+        `SELECT ugp.id FROM user_group_permission ugp
+         INNER JOIN user_group_member ugm ON ugm.group_id = ugp.group_id
+         WHERE ugm.user_id = ? AND ugp.permission = ?`,
+        [socket.userID, permission]
+    );
+
+    if (!row) {
+        throw new Error("Permission denied.");
+    }
+};
+
+/**
+ * Get all permissions for a user (union of all group permissions)
+ * @param {number} userID User ID
+ * @returns {Promise<string[]>} List of permission strings
+ */
+exports.getUserPermissions = async (userID) => {
+    const rows = await R.getAll(
+        `SELECT DISTINCT ugp.permission FROM user_group_permission ugp
+         INNER JOIN user_group_member ugm ON ugm.group_id = ugp.group_id
+         WHERE ugm.user_id = ?`,
+        [userID]
+    );
+    return rows.map((r) => r.permission);
+};
+
+/**
+ * Get all monitor IDs accessible to the given user.
+ * Admins can access every monitor; non-admins see only monitors
+ * that belong to a collection owned by one of their user groups.
+ * @param {number} userID User ID
+ * @returns {Promise<number[]>} Accessible monitor IDs
+ */
+exports.getAccessibleMonitorIDs = async (userID) => {
+    if (await exports.isAdmin(userID)) {
+        const rows = await R.getAll("SELECT id FROM monitor", []);
+        return rows.map((r) => r.id);
+    }
+    // Non-admins see:
+    // 1. Monitors in collections owned by their user groups
+    // 2. Monitors they created that haven't been assigned to any collection yet
+    //    (handles the window between creation and collection assignment)
+    const rows = await R.getAll(
+        `SELECT DISTINCT m.id FROM monitor m
+         INNER JOIN monitor_collection_monitor cm ON cm.monitor_id = m.id
+         INNER JOIN monitor_collection_user_group cug ON cug.collection_id = cm.collection_id
+         INNER JOIN user_group_member ugm ON ugm.group_id = cug.group_id
+         WHERE ugm.user_id = ?
+         UNION
+         SELECT id FROM monitor
+         WHERE user_id = ?
+           AND id NOT IN (SELECT monitor_id FROM monitor_collection_monitor)`,
+        [userID, userID]
+    );
+    return rows.map((r) => r.id);
+};
+
+/**
+ * Check whether a user can access a specific monitor.
+ * @param {number} userID User ID
+ * @param {number} monitorID Monitor ID
+ * @returns {Promise<boolean>}
+ */
+exports.canAccessMonitor = async (userID, monitorID) => {
+    const ids = await exports.getAccessibleMonitorIDs(userID);
+    return ids.includes(Number(monitorID));
+};
+
+/**
  * For logged-in users, double-check the password
  * @param {Socket} socket Socket.io instance
  * @param {string} currentPassword Password to validate
